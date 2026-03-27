@@ -6,7 +6,7 @@
 
 **Persistent experience memory for Claude Code skills.**
 
-Claude remembers what it learned — session after session.
+Claude remembers what it learned — session after session, skill by skill.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-8A2BE2)](https://claude.ai/code)
@@ -31,7 +31,7 @@ Session 3:  same mistake again                                ✗ forgot
 
 ## The Solution
 
-`fireworks-skill-memory` gives Claude a persistent, skill-scoped memory that grows smarter with every session.
+`fireworks-skill-memory` gives Claude a persistent, skill-scoped memory that grows smarter with every session — automatically, in the background, with zero impact on your workflow.
 
 ```
 Session 1:  mistake happens → lesson saved automatically
@@ -39,60 +39,48 @@ Session 2:  lesson injected before Claude responds            ✓ no repeat
 Session 3:  lesson still there, more lessons added            ✓ keeps improving
 ```
 
-**Install in Claude Code — just say:**
+---
 
-> *"Help me install fireworks-skill-memory"*
+## Install
 
-Or run directly:
+**In Claude Code, just say:**
+
+> *"Help me install fireworks-skill-memory from https://github.com/yizhiyanhua-ai/fireworks-skill-memory"*
+
+Or run directly in your terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
-Then type `/hooks` in Claude Code to activate.
+Then type `/hooks` in Claude Code to activate. No config files to edit manually.
 
 ---
 
-## How It Works
+## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Claude Code Session                        │
-│                                                                 │
-│   User invokes a skill                                          │
-│         │                                                       │
-│         ▼                                                       │
-│   Claude reads SKILL.md  ──► PostToolUse Hook fires            │
-│                                      │                         │
-│                                      ▼                         │
-│                              inject-skill-knowledge.py          │
-│                                      │                         │
-│                                      ▼                         │
-│                         Reads KNOWLEDGE.md (< 5ms)             │
-│                                      │                         │
-│                                      ▼                         │
-│                    ┌─────────────────────────────┐             │
-│                    │  additionalContext injected  │             │
-│                    │  Claude sees past lessons    │             │
-│                    │  before writing one word     │             │
-│                    └─────────────────────────────┘             │
-│                                                                 │
-│   Session ends                                                  │
-│         │                                                       │
-│         ▼                                                       │
-│   Stop Hook fires (async, non-blocking)                        │
-│         │                                                       │
-│         ▼                                                       │
-│   update-skills-knowledge.py                                    │
-│         │                                                       │
-│         ├── reads last 300 lines of JSONL transcript           │
-│         ├── detects which skills were used                      │
-│         ├── calls haiku → extracts 1-3 new lessons             │
-│         ├── deduplicates → appends to KNOWLEDGE.md             │
-│         └── checks for cross-skill patterns → global file      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+### End-to-End Flow
+
+<img src="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/docs/architecture.svg" alt="Architecture diagram" width="100%"/>
+
+Two hooks, two jobs:
+
+| Hook | Event | Job |
+|------|-------|-----|
+| `PostToolUse` (Read) | When Claude reads a `SKILL.md` | Inject past lessons into context — **< 5ms, pure file I/O** |
+| `Stop` (async) | When a session ends | Distil 1–3 new lessons from transcript via haiku — **non-blocking** |
+
+### Harness Engineering Pattern
+
+<img src="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/docs/harness-pattern.svg" alt="Harness pattern diagram" width="100%"/>
+
+Claude Code's **Harness** is the orchestration layer between the model and the world — the model only reasons, while Harness handles all I/O: tool calls, file access, subprocess execution, permission enforcement. `fireworks-skill-memory` is a pure Harness-layer extension: it never modifies the model, never touches your prompts, and never intercepts user input.
+
+It operates on exactly two lifecycle hook points that the Harness exposes:
+- **`PostToolUse` on `Read`** — fires when any `SKILL.md` is read, injects `additionalContext` into the model's context window
+- **`Stop` with `async: true`** — fires after every session completes, runs the distillation pipeline in the background without blocking
+
+This is the correct engineering pattern for extending Claude Code: hook into the Harness lifecycle, not into the model itself.
 
 ---
 
@@ -100,13 +88,13 @@ Then type `/hooks` in Claude Code to activate.
 
 ```
 ~/.claude/
-├── skills-knowledge.md        ← global principles (≤ 20 entries)
-│     "Always test proxy connectivity before external calls"
-│     "Batch operations: always go top → bottom, not reversed"
+├── skills-knowledge.md          ← global cross-skill principles (≤ 20 entries)
+│     "Test proxy connectivity before any external call"
+│     "Batch insert blocks top→bottom; never use index=0 to prepend"
 │
 └── skills/
     ├── browser-use/
-    │   └── KNOWLEDGE.md       ← skill-specific lessons (≤ 30 entries)
+    │   └── KNOWLEDGE.md         ← skill-specific lessons (≤ 30 entries)
     │         "Run state before every click — indices change after interaction"
     │         "Use --profile for sites with saved logins"
     │
@@ -114,46 +102,20 @@ Then type `/hooks` in Claude Code to activate.
     │   └── KNOWLEDGE.md
     │
     └── {any-skill}/
-        └── KNOWLEDGE.md       ← auto-created on first lesson
+        └── KNOWLEDGE.md         ← auto-created on first lesson
 ```
 
 **Two-layer design:**
 - **Global** — principles that help across all skills
-- **Per-skill** — precise, actionable lessons for that specific skill only
+- **Per-skill** — precise, actionable lessons scoped to that skill only
 
-Injection is scoped: only the relevant skill's knowledge loads, keeping context clean.
-
----
-
-## Installation
-
-### Recommended: Ask Claude
-
-Open Claude Code and say:
-
-> **"Help me install fireworks-skill-memory from GitHub"**
-
-Claude will handle everything.
-
-### One-line install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
-```
-
-The installer:
-1. ✅ Checks Python 3.9+ and Claude Code
-2. ✅ Downloads hook scripts to `~/.claude/scripts/`
-3. ✅ Merges hooks into `~/.claude/settings.json` — existing config untouched
-4. ✅ Optionally seeds starter knowledge for official skills
-
-Then type `/hooks` in Claude Code to activate.
+Context injection is scoped: only the relevant skill's file loads, keeping the model's context window clean.
 
 ---
 
 ## What Gets Remembered
 
-Example knowledge entries that build up over time:
+Example entries that accumulate over real usage:
 
 ```markdown
 # browser-use — experience
@@ -166,22 +128,13 @@ Example knowledge entries that build up over time:
   already logged in. Headless Chromium has no saved cookies.
 ```
 
-```markdown
-# find-skills — experience
-
-- [install path] Skills install to ~/.claude/skills/ by default.
-  Check there first before assuming a skill is missing.
-- [network errors] find-skills calls skillsmp.com — on restricted networks
-  it fails silently. Test connectivity before blaming the skill.
-```
-
 ---
 
 ## Included Starter Knowledge
 
 Ready-made lesson files for Claude Code's official skills — included out of the box:
 
-| Skill | What's pre-loaded |
+| Skill | Pre-loaded lessons |
 |-------|-------------------|
 | `find-skills` | CLI commands, install paths, network error patterns |
 | `skills-updater` | Two update sources, version tracking, locale detection |
@@ -197,12 +150,12 @@ Ready-made lesson files for Claude Code's official skills — included out of th
 
 ## Privacy & Security
 
-| What | Detail |
-|------|--------|
-| 📍 Data location | Everything stays on your machine — no cloud, no uploads |
-| 📄 Transcript access | Reads only JSONL files Claude Code already stores locally |
-| 🔑 Secrets | Distillation prompt explicitly excludes credentials and personal data |
-| 🤖 API calls | Runs through your existing Claude Code auth — no third-party endpoints |
+| | Detail |
+|--|--------|
+| 📍 **Data location** | Everything stays on your machine — no cloud, no uploads |
+| 📄 **Transcript access** | Reads only JSONL files Claude Code already stores locally |
+| 🔑 **Secrets** | Distillation prompt explicitly excludes credentials and personal data |
+| 🤖 **API calls** | Runs through your existing Claude Code auth — no third-party endpoints |
 
 See [SECURITY.md](SECURITY.md) for the full security policy.
 
@@ -216,7 +169,7 @@ All optional. Set in `~/.claude/settings.json` under `"env"`:
 |----------|---------|-------------|
 | `SKILLS_KNOWLEDGE_MODEL` | `claude-haiku-4-5` | Model used for distillation |
 | `SKILL_MAX` | `30` | Max entries per skill file |
-| `GLOBAL_MAX` | `20` | Max entries in global file |
+| `GLOBAL_MAX` | `20` | Max entries in the global file |
 | `TRANSCRIPT_LINES` | `300` | Lines of transcript to analyse |
 | `SKILLS_KNOWLEDGE_DIR` | `~/.claude/skills` | Root of skill directories |
 
@@ -228,7 +181,7 @@ Contributions of new starter `KNOWLEDGE.md` files for popular skills are especia
 
 1. Fork and branch: `git checkout -b feat/skill-name-knowledge`
 2. Add your file to `examples/skill-knowledge/`
-3. Open a PR with a short description of what lessons are included
+3. Open a PR — describe what lessons are included and why they matter
 
 ---
 

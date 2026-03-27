@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" width="900" height="400">
+  <defs>
+    <style>
+      text { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+    </style>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+    </marker>
+    <marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="400" fill="url(#bg2)" rx="12"/>
+  <rect width="900" height="400" fill="none" stroke="#334155" stroke-width="1" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="34" text-anchor="middle" font-size="14" fill="#f8fafc" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Harness Engineering Pattern — How fireworks-skill-memory fits in</text>
+  <line x1="60" y1="46" x2="840" y2="46" stroke="#334155" stroke-width="1"/>
+
+  <!-- ===== HARNESS OUTER BOX ===== -->
+  <rect x="40" y="60" width="820" height="300" rx="10" fill="none" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="56" y="80" font-size="11" fill="#60a5fa" font-family="'SF Mono','Fira Code',monospace">Claude Code Harness</text>
+
+  <!-- Model box -->
+  <rect x="360" y="100" width="180" height="70" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="450" y="127" text-anchor="middle" font-size="13" fill="#a5b4fc" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Claude Model</text>
+  <text x="450" y="145" text-anchor="middle" font-size="10" fill="#818cf8" font-family="'SF Mono','Fira Code',monospace">reasoning &amp; decision</text>
+  <text x="450" y="160" text-anchor="middle" font-size="10" fill="#818cf8" font-family="'SF Mono','Fira Code',monospace">no direct I/O</text>
+
+  <!-- Tools column -->
+  <rect x="80" y="100" width="200" height="230" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="180" y="122" text-anchor="middle" font-size="11" fill="#94a3b8" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Built-in Tools</text>
+
+  <!-- Tool pills -->
+  <rect x="96" y="132" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="126" y="147" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Bash</text>
+  <rect x="164" y="132" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="194" y="147" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Read</text>
+  <rect x="96" y="162" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="126" y="177" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Write</text>
+  <rect x="164" y="162" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="194" y="177" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Edit</text>
+  <rect x="96" y="192" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="126" y="207" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Glob</text>
+  <rect x="164" y="192" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="194" y="207" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Grep</text>
+  <rect x="96" y="222" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="126" y="237" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Agent</text>
+  <rect x="164" y="222" width="60" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="194" y="237" text-anchor="middle" font-size="10" fill="#e2e8f0" font-family="'SF Mono','Fira Code',monospace">Skill</text>
+
+  <!-- Skills layer -->
+  <rect x="96" y="258" width="168" height="28" rx="4" fill="#0c4a6e" stroke="#0ea5e9" stroke-width="1"/>
+  <text x="180" y="276" text-anchor="middle" font-size="10" fill="#7dd3fc" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Skills (SKILL.md)</text>
+
+  <!-- Arrow: Tools ↔ Model -->
+  <line x1="280" y1="135" x2="360" y2="135" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <line x1="360" y1="155" x2="280" y2="155" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <text x="320" y="148" text-anchor="middle" font-size="9" fill="#64748b" font-family="'SF Mono','Fira Code',monospace">tool calls</text>
+
+  <!-- ===== HOOKS COLUMN ===== -->
+  <rect x="620" y="100" width="210" height="230" rx="8" fill="#0f172a" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="725" y="122" text-anchor="middle" font-size="11" fill="#a78bfa" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Hook Lifecycle</text>
+
+  <!-- Hook events -->
+  <rect x="636" y="132" width="178" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+  <text x="636" y="132" dx="6" dy="15" font-size="10" fill="#818cf8" font-family="'SF Mono','Fira Code',monospace">PreToolUse</text>
+  <text x="814" y="132" dx="-6" dy="15" text-anchor="end" font-size="9" fill="#475569" font-family="'SF Mono','Fira Code',monospace">block / allow</text>
+
+  <rect x="636" y="162" width="178" height="22" rx="4" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="636" y="162" dx="6" dy="15" font-size="10" fill="#fcd34d" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">PostToolUse ← inject</text>
+
+  <rect x="636" y="192" width="178" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+  <text x="636" y="192" dx="6" dy="15" font-size="10" fill="#818cf8" font-family="'SF Mono','Fira Code',monospace">Notification</text>
+
+  <rect x="636" y="222" width="178" height="22" rx="4" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="636" y="222" dx="6" dy="15" font-size="10" fill="#fcd34d" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">Stop (async) ← distill</text>
+
+  <rect x="636" y="252" width="178" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+  <text x="636" y="252" dx="6" dy="15" font-size="10" fill="#818cf8" font-family="'SF Mono','Fira Code',monospace">SessionStart</text>
+
+  <!-- fireworks badge on hooks -->
+  <rect x="636" y="286" width="178" height="30" rx="4" fill="#451a03" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="725" y="305" text-anchor="middle" font-size="10" fill="#fcd34d" font-weight="bold" font-family="'SF Mono','Fira Code',monospace">🎆 fireworks-skill-memory</text>
+
+  <!-- Arrow: Model → Hooks -->
+  <line x1="540" y1="135" x2="620" y2="135" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <text x="580" y="128" text-anchor="middle" font-size="9" fill="#7c3aed" font-family="'SF Mono','Fira Code',monospace">lifecycle</text>
+  <text x="580" y="140" text-anchor="middle" font-size="9" fill="#7c3aed" font-family="'SF Mono','Fira Code',monospace">events</text>
+
+  <!-- Arrow: Hooks → inject back to model -->
+  <line x1="620" y1="165" x2="543" y2="152" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arr2)" stroke-dasharray="4,2"/>
+  <text x="575" y="163" text-anchor="middle" font-size="9" fill="#f59e0b" font-family="'SF Mono','Fira Code',monospace">additionalContext</text>
+
+  <!-- KNOWLEDGE files bottom -->
+  <rect x="200" y="358" width="500" height="26" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="450" y="375" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="'SF Mono','Fira Code',monospace">~/.claude/skills-knowledge.md  ·  ~/.claude/skills/{name}/KNOWLEDGE.md</text>
+
+  <!-- Arrows to/from knowledge files -->
+  <line x1="370" y1="358" x2="320" y2="326" stroke="#334155" stroke-width="1" fill="none" marker-end="url(#arr)" stroke-dasharray="4,2"/>
+  <line x1="530" y1="358" x2="680" y2="326" stroke="#f59e0b" stroke-width="1" fill="none" marker-end="url(#arr2)" stroke-dasharray="4,2"/>
+</svg>

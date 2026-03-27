@@ -6,7 +6,7 @@
 
 **为 Claude Code Skills 提供持久化经验记忆。**
 
-让 Claude 记住它学到的东西——跨越每一次会话。
+让 Claude 记住它学到的东西——跨越每一次会话，按 skill 精准存储。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-8A2BE2)](https://claude.ai/code)
@@ -31,7 +31,7 @@
 
 ## 解决方案
 
-`fireworks-skill-memory` 给 Claude 一个持续积累的、按 skill 分类的记忆，每次会话后自动变得更聪明。
+`fireworks-skill-memory` 给 Claude 一个持续积累的、按 skill 分类的记忆，每次会话后自动变得更聪明——完全在后台运行，对使用流程零影响。
 
 ```
 第 1 次：  出错 → 教训自动保存
@@ -39,59 +39,48 @@
 第 3 次：  教训还在，还在继续积累                   ✓ 持续进化
 ```
 
+---
+
+## 安装
+
 **在 Claude Code 里直接说：**
 
-> *"帮我安装 fireworks-skill-memory"*
+> *"帮我从 https://github.com/yizhiyanhua-ai/fireworks-skill-memory 安装 fireworks-skill-memory"*
 
-或者直接运行：
+或者在终端直接运行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
-然后在 Claude Code 中输入 `/hooks` 激活。
+然后在 Claude Code 中输入 `/hooks` 激活。无需手动编辑任何配置文件。
 
 ---
 
-## 工作原理
+## 架构
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Claude Code 会话                           │
-│                                                                 │
-│   用户触发某个 skill                                            │
-│         │                                                       │
-│         ▼                                                       │
-│   Claude 读取 SKILL.md  ──► PostToolUse Hook 触发              │
-│                                      │                         │
-│                                      ▼                         │
-│                              inject-skill-knowledge.py          │
-│                                      │                         │
-│                                      ▼                         │
-│                         读取 KNOWLEDGE.md（< 5ms）             │
-│                                      │                         │
-│                                      ▼                         │
-│                    ┌─────────────────────────────┐             │
-│                    │   additionalContext 注入     │             │
-│                    │   Claude 在回答前看到历史教训 │             │
-│                    └─────────────────────────────┘             │
-│                                                                 │
-│   会话结束                                                      │
-│         │                                                       │
-│         ▼                                                       │
-│   Stop Hook 触发（异步，不阻塞）                               │
-│         │                                                       │
-│         ▼                                                       │
-│   update-skills-knowledge.py                                    │
-│         │                                                       │
-│         ├── 读取 JSONL transcript 最后 300 行                  │
-│         ├── 检测本次用了哪些 skill                              │
-│         ├── 调用 haiku → 提炼 1-3 条新教训                    │
-│         ├── 去重后追加到对应 KNOWLEDGE.md                      │
-│         └── 检测跨 skill 规律 → 更新全局文件                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+### 完整流程图
+
+<img src="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/docs/architecture.svg" alt="架构图" width="100%"/>
+
+两个 hook，两个职责：
+
+| Hook | 触发时机 | 职责 |
+|------|---------|------|
+| `PostToolUse` (Read) | Claude 读取任意 `SKILL.md` 时 | 将历史教训注入上下文——**< 5ms，纯文件读取** |
+| `Stop` (async) | 会话结束时 | 用 haiku 从 transcript 提炼 1–3 条新教训——**不阻塞** |
+
+### Harness 工程模式
+
+<img src="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/docs/harness-pattern.svg" alt="Harness 工程模式图" width="100%"/>
+
+Claude Code 的 **Harness（线束）** 是模型与外部世界之间的编排层——模型只负责推理，Harness 负责所有 I/O：工具调用、文件访问、子进程执行、权限管控。`fireworks-skill-memory` 是一个纯 Harness 层扩展：它不修改模型，不干预用户 prompt，不拦截任何输入。
+
+它只在 Harness 暴露的两个生命周期钩子点上工作：
+- **`PostToolUse` on `Read`** — 当任意 `SKILL.md` 被读取时触发，通过 `additionalContext` 向模型上下文注入历史经验
+- **`Stop` with `async: true`** — 每次会话结束后触发，在后台运行蒸馏流水线，不阻塞任何用户操作
+
+这是扩展 Claude Code 的正确工程模式：挂载到 Harness 生命周期，而不是修改模型本身。
 
 ---
 
@@ -99,13 +88,13 @@ curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memo
 
 ```
 ~/.claude/
-├── skills-knowledge.md        ← 全局通用准则（≤ 20 条）
-│     「所有外部调用前先测试代理连通性」
-│     「批量操作必须从上到下顺序插入，不能反向」
+├── skills-knowledge.md          ← 全局跨 skill 通用准则（≤ 20 条）
+│     「任何外部调用前先测试代理连通性」
+│     「批量插入块必须从上到下顺序，不能用 index=0 反向」
 │
 └── skills/
     ├── browser-use/
-    │   └── KNOWLEDGE.md       ← skill 专属教训（≤ 30 条）
+    │   └── KNOWLEDGE.md         ← skill 专属教训（≤ 30 条）
     │         「每次 click 前必须先 state——索引在交互后会变化」
     │         「用 --profile 访问已登录的网站」
     │
@@ -113,46 +102,20 @@ curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memo
     │   └── KNOWLEDGE.md
     │
     └── {任意 skill}/
-        └── KNOWLEDGE.md       ← 首次出现教训时自动创建
+        └── KNOWLEDGE.md         ← 首次出现教训时自动创建
 ```
 
 **两层设计：**
 - **全局层** — 对所有 skill 都有帮助的通用原则
 - **Skill 层** — 只和这个 skill 相关的精确操作教训
 
-注入时只加载当前 skill 的知识，不污染上下文。
-
----
-
-## 安装
-
-### 推荐：让 Claude 帮你装
-
-打开 Claude Code，直接说：
-
-> **"帮我从 GitHub 安装 fireworks-skill-memory"**
-
-Claude 会处理一切。
-
-### 一行命令安装
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
-```
-
-安装脚本会自动完成：
-1. ✅ 检查 Python 3.9+ 和 Claude Code
-2. ✅ 下载 hook 脚本到 `~/.claude/scripts/`
-3. ✅ 合并 hooks 到 `~/.claude/settings.json`——已有配置不受影响
-4. ✅ 可选：为官方 skill 预置初始知识文件
-
-完成后在 Claude Code 中输入 `/hooks` 激活。
+注入时只加载当前 skill 的知识，不污染模型上下文窗口。
 
 ---
 
 ## 会积累哪些内容
 
-经过几次使用后，知识文件大概长这样：
+经过几次真实使用后，知识文件大概长这样：
 
 ```markdown
 # browser-use — 经验库
@@ -163,15 +126,6 @@ curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memo
   守护进程会一直开着占用资源，不会自动关闭。
 - [Profile 登录] 用 --profile "Default" 访问已登录的网站。
   无头 Chromium 没有保存的 cookie。
-```
-
-```markdown
-# find-skills — 经验库
-
-- [安装路径] Skill 默认装到 ~/.claude/skills/。
-  找不到 skill 先去那里检查，再判断是否缺失。
-- [网络错误] find-skills 需要访问 skillsmp.com——
-  受限网络会静默失败，先测试连通性再排查 skill 问题。
 ```
 
 ---
@@ -196,12 +150,12 @@ Claude Code 官方 skill 的经验文件，开箱即用：
 
 ## 隐私与安全
 
-| 项目 | 说明 |
-|------|------|
-| 📍 数据位置 | 全部在本机，不上传，不联网 |
-| 📄 Transcript 访问 | 只读取 Claude Code 已在本地保存的 JSONL 文件 |
-| 🔑 敏感信息 | 提炼 prompt 明确排除凭证和个人数据 |
-| 🤖 API 调用 | 走本机已有的 Claude Code 认证，不经过第三方 |
+| | 说明 |
+|--|------|
+| 📍 **数据位置** | 全部在本机，不上传，不联网 |
+| 📄 **Transcript 访问** | 只读取 Claude Code 已在本地保存的 JSONL 文件 |
+| 🔑 **敏感信息** | 提炼 prompt 明确排除凭证和个人数据 |
+| 🤖 **API 调用** | 走本机已有的 Claude Code 认证，不经过第三方 |
 
 完整安全策略详见 [SECURITY.md](SECURITY.md)。
 
@@ -227,7 +181,7 @@ Claude Code 官方 skill 的经验文件，开箱即用：
 
 1. Fork 并创建分支：`git checkout -b feat/skill-name-knowledge`
 2. 在 `examples/skill-knowledge/` 中添加文件
-3. 提交 PR，简单说明包含哪些教训
+3. 提交 PR，简单说明包含哪些教训以及为什么重要
 
 ---
 
