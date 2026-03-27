@@ -51,6 +51,13 @@ SKILLS_DIR = Path(
     os.environ.get("SKILLS_KNOWLEDGE_DIR", Path.home() / ".claude" / "skills")
 )
 
+# [Opt-6] Multi-path skill detection — support skills installed under various paths
+SKILL_PATH_PATTERNS = [
+    r'/.claude/skills/([^/]+)/',
+    r'/.skills/([^/]+)/',
+    r'/.agents/skills/([^/]+)/',
+]
+
 # ── Read hook input ────────────────────────────────────────────────────────────
 try:
     hook_input = json.loads(sys.stdin.read())
@@ -63,14 +70,17 @@ if hook_input.get("tool_name") != "Read":
 
 # Only act when a SKILL.md inside a skills directory is being read
 file_path = hook_input.get("tool_input", {}).get("file_path", "")
-if "SKILL.md" not in file_path or "/.claude/skills/" not in file_path:
+if "SKILL.md" not in file_path:
     sys.exit(0)
 
 # ── Extract skill name from path ───────────────────────────────────────────────
-try:
-    skill_name = file_path.split("/.claude/skills/")[1].split("/")[0]
-except (IndexError, AttributeError):
-    sys.exit(0)
+# [Opt-6] Try multiple skill installation paths
+skill_name = ""
+for pattern in SKILL_PATH_PATTERNS:
+    m = re.search(pattern, file_path)
+    if m:
+        skill_name = m.group(1)
+        break
 
 if not skill_name:
     sys.exit(0)

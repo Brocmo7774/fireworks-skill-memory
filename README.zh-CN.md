@@ -8,6 +8,7 @@
 
 让 Claude 记住它学到的东西——跨越每一次会话，按 skill 精准存储。
 
+[![Version](https://img.shields.io/badge/version-3.0.0-orange.svg)](https://github.com/yizhiyanhua-ai/fireworks-skill-memory/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-8A2BE2)](https://claude.ai/code)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://python.org)
@@ -69,6 +70,12 @@ curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memo
 |------|---------|------|
 | `PostToolUse` (Read) | Claude 读取任意 `SKILL.md` 时 | 将历史教训注入上下文——**< 5ms，纯文件读取** |
 | `Stop` (async) | 会话结束时 | 用 haiku 从 transcript 提炼 1–3 条新教训——**不阻塞** |
+
+**v3 精度与效率优化（2026-03-28，无需修改配置）：**
+- 无关键词触发 — 去掉硬编码关键词列表，纯粹基于 skill 调用记录触发蒸馏，修复非英文和领域特定 skill 的覆盖盲区
+- 错误信号门控 — 仅在 transcript 中检测到 error/fix 信号时才调用 haiku，消除顺畅会话的无效 API 调用
+- 多路径 skill 检测 — 识别 `~/.claude/skills/`、项目 `.skills/`、`~/.agents/skills/` 三种安装路径
+- 时间戳衰减 — 条目标记 `[YYYY-MM]`，超过 3 个月自动优先淘汰，保持知识库新鲜度
 
 ### Harness 工程模式
 

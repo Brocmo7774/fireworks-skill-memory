@@ -16,12 +16,23 @@ Architecture
 
 Optimizations
 -------------
+  v2:
   [1] Context-compression detection: skips distillation when the transcript
       looks like a summary-only session (no tool calls in last N lines),
       preventing low-quality lessons from summary text.
   [4] Frequency-weighted eviction: entries tagged [HIT:N] accumulate usage
       counts; on overflow, entries with lowest (hits × recency) are evicted
       instead of simple FIFO.
+
+  v3:
+  [5] Error-signal heuristic pre-filter: distillation (haiku) calls are only
+      made when the transcript contains error/fix signal patterns, avoiding
+      wasted inference on routine sessions. SKILL_KEYWORDS removed.
+  [6] Multi-path skill detection: skills are detected from /.claude/skills/,
+      /.skills/, and /.agents/skills/ paths (not just /.claude/skills/).
+  [7] Timestamp [YYYY-MM] prefix + age-based decay: new entries are tagged
+      with their creation month. Entries older than 3 months receive an
+      eviction penalty, combining with HIT counts for smarter eviction.
 
 Installation
 ------------
@@ -76,13 +87,21 @@ TRANSCRIPT_LINES = int(os.environ.get("TRANSCRIPT_LINES", "300"))
 # [Opt-1] Minimum real tool calls to consider this a non-summary session
 MIN_TOOL_CALLS = int(os.environ.get("MIN_TOOL_CALLS", "5"))
 
-# Keywords that signal a skill-relevant session worth analysing
-SKILL_KEYWORDS = [
-    "api", "skill", "token", "upload", "webhook", "mcp", "hook", "plugin",
-    "translate", "docx", "drive", "request", "endpoint", "auth", "permission",
-    "error", "failed", "fix", "workaround",
-    # CJK equivalents
-    "翻译", "上传", "权限", "错误", "失败",
+# [Opt-5] Error/fix signal detection — used as a heuristic pre-filter for distillation.
+# Only sessions containing these signals are worth distilling (avoids wasting haiku calls
+# on routine sessions with no debugging/error content).
+ERROR_SIGNAL_PATTERNS = re.compile(
+    r'error|failed|failure|exception|traceback|bug|fix|workaround|'
+    r'retry|timeout|denied|refused|rejected|deprecated|breaking|'
+    r'调试|报错|失败|修复|踩坑|回退',
+    re.IGNORECASE
+)
+
+# [Opt-6] Multi-path skill detection — support skills installed under various paths
+SKILL_PATH_PATTERNS = [
+    r'/.claude/skills/([^/]+)/',
+    r'/.skills/([^/]+)/',
+    r'/.agents/skills/([^/]+)/',
 ]
 
 # ── Read hook input ────────────────────────────────────────────────────────────
@@ -117,6 +136,7 @@ except Exception:
 
 tool_uses: list[str] = []
 assistant_texts: list[str] = []
+tool_result_texts: list[str] = []  # [Opt-5] collect tool_result blocks for error signal detection
 skill_invocations: set[str] = set()
 real_tool_call_count: int = 0  # [Opt-1] count actual tool calls (not summary lines)
 
@@ -143,13 +163,20 @@ for raw in lines:
                         skill_invocations.add(sn)
                 elif name == "Read":
                     fp = inp.get("file_path", "")
-                    m = re.search(r"/skills/([^/]+)/SKILL\.md", fp)
-                    if m:
-                        skill_invocations.add(m.group(1))
+                    for pattern in SKILL_PATH_PATTERNS:
+                        m = re.search(pattern.replace('([^/]+)/', r'([^/]+)/SKILL\.md'), fp)
+                        if m:
+                            skill_invocations.add(m.group(1))
+                            break
             elif role == "assistant" and btype == "text":
                 txt = block.get("text", "")
                 if len(txt) > 80:
                     assistant_texts.append(txt[:400])
+            # [Opt-5] Collect tool_result text for error signal detection
+            elif btype == "tool_result" or (role == "tool" and btype == "text"):
+                txt = block.get("text", "")
+                if txt:
+                    tool_result_texts.append(txt[:400])
     except Exception:
         continue
 
@@ -159,10 +186,19 @@ for raw in lines:
 if real_tool_call_count < MIN_TOOL_CALLS:
     sys.exit(0)
 
-# Skip sessions with no skill-relevant content
-full_text = " ".join(tool_uses + assistant_texts).lower()
-has_relevant = any(kw in full_text for kw in SKILL_KEYWORDS)
-if not has_relevant and not skill_invocations:
+# [Opt-5] Error-signal heuristic: only sessions with error/fix signals are worth distilling.
+# Routine sessions without debugging content produce low-quality lessons.
+all_text = " ".join(tool_uses + assistant_texts + tool_result_texts)
+has_error_signal = bool(ERROR_SIGNAL_PATTERNS.search(all_text))
+
+# Collect error snippets for higher-quality distillation prompts
+error_snippets = ""
+if has_error_signal:
+    snippets = [t for t in tool_result_texts if ERROR_SIGNAL_PATTERNS.search(t)]
+    error_snippets = "\n".join(snippets[:5])[:1500]
+
+# Skip sessions with no skill invocations AND no error signals
+if not skill_invocations and not has_error_signal:
     sys.exit(0)
 
 # ── Helper functions ───────────────────────────────────────────────────────────
@@ -192,14 +228,42 @@ def _set_hit_count(entry: str, count: int) -> str:
     return entry + f"  {tag}"
 
 
+def _get_entry_age_months(entry: str) -> float:
+    """[Opt-7] Extract [YYYY-MM] timestamp from an entry and return age in months.
+    Returns 999 if no timestamp is found (treated as very old)."""
+    m = re.search(r"\[(\d{4})-(\d{2})\]", entry)
+    if not m:
+        return 999.0  # No timestamp = assume very old
+    try:
+        entry_year, entry_month = int(m.group(1)), int(m.group(2))
+        now = datetime.now()
+        age_months = (now.year - entry_year) * 12 + (now.month - entry_month)
+        return max(0.0, float(age_months))
+    except (ValueError, OverflowError):
+        return 999.0
+
+
 def _evict_entries(entries: list[str], max_count: int) -> list[str]:
-    """[Opt-4] Frequency-weighted eviction: remove entries with lowest hit counts
-    when over the limit, instead of plain FIFO."""
+    """[Opt-4+7] Frequency-weighted eviction with age-based decay.
+    Combines HIT counts with age: entries older than 3 months get a penalty,
+    making them more likely to be evicted. Score = hits - age_penalty.
+    Entries with lowest combined score are evicted first."""
     if len(entries) <= max_count:
         return entries
     overflow = len(entries) - max_count
-    # Sort by hit count ascending; ties broken by position (older = lower index)
-    indexed = sorted(enumerate(entries), key=lambda x: (_get_hit_count(x[1]), x[0]))
+
+    def _eviction_score(entry: str, index: int) -> tuple[float, int]:
+        hits = _get_hit_count(entry)
+        age = _get_entry_age_months(entry)
+        # Age penalty: 0 for entries <= 3 months, increases linearly after
+        age_penalty = max(0.0, (age - 3.0) * 0.5)
+        score = hits - age_penalty
+        return (score, index)  # ties broken by position (older = lower index)
+
+    indexed = sorted(
+        enumerate(entries),
+        key=lambda x: _eviction_score(x[1], x[0]),
+    )
     evict_indices = {idx for idx, _ in indexed[:overflow]}
     return [e for i, e in enumerate(entries) if i not in evict_indices]
 
@@ -229,7 +293,9 @@ def write_knowledge(
 
 def merge_entries(existing: list[str], new_insights: str) -> list[str]:
     """Append new bullet entries while deduplicating against existing ones.
-    [Opt-4] Also increments [HIT:N] counters on matched existing entries."""
+    [Opt-4] Also increments [HIT:N] counters on matched existing entries.
+    [Opt-7] Adds [YYYY-MM] timestamp prefix to new entries for age tracking."""
+    month_tag = datetime.now().strftime("[%Y-%m]")
     for line in new_insights.splitlines():
         line = line.strip()
         if not line.startswith("- "):
@@ -243,6 +309,10 @@ def merge_entries(existing: list[str], new_insights: str) -> list[str]:
                 matched = True
                 break
         if not matched:
+            # [Opt-7] Add [YYYY-MM] prefix if not already present
+            entry_body = line[2:]  # strip leading "- "
+            if not re.match(r"\[\d{4}-\d{2}\]", entry_body):
+                line = f"- {month_tag} {entry_body}"
             existing.append(line)
     return existing
 
@@ -287,19 +357,32 @@ for skill_name in skill_invocations:
         if error_seed_text else ""
     )
 
+    # [Opt-5] Include error snippets from tool_result blocks for richer distillation
+    snippet_section = (
+        f"\n\nError snippets from tool results:\n{error_snippets}"
+        if error_snippets else ""
+    )
+
+    # [Opt-5] Skip haiku call if no error signal AND no error seeds —
+    # the error_seeds mechanism works independently from transcript-level signals
+    if not has_error_signal and not error_seed_text:
+        continue
+
     prompt = (
         f'You are an experience-distillation assistant. Below is a snippet of a Claude '
         f'Code session that used the "{skill_name}" skill.\n\n'
         f"Tools called: {tools}\n\n"
         f"Assistant output (excerpt):\n{context[:1500]}"
-        f"{seed_section}\n\n"
+        f"{seed_section}"
+        f"{snippet_section}\n\n"
         f"Already recorded (avoid duplicates):\n"
         f"{chr(10).join(existing[-10:]) if existing else '(none)'}\n\n"
         f"Extract 1-3 concrete, actionable lessons specifically about the \"{skill_name}\" "
         f"skill from this session. Requirements:\n"
         f"- Must be a real new finding: a bug, gotcha, workaround, or API detail\n"
         f"- Prefer lessons from the error/fix seeds section — they are ground truth\n"
-        f"- Start each entry with '- [Tag]' where Tag names the specific API/feature\n"
+        f"- Start each entry with '- [YYYY-MM] [Tag]' where YYYY-MM is the current month "
+        f"and Tag names the specific API/feature\n"
         f"- If nothing new was found, output only: SKIP\n"
         f"Output only the bullet list or SKIP."
     )
@@ -316,7 +399,8 @@ for skill_name in skill_invocations:
         )
 
 # ── Update global cross-skill knowledge file ──────────────────────────────────
-if skill_invocations or has_relevant:
+# [Opt-5] Only distill global knowledge when error signals are present AND skills were used
+if has_error_signal and len(skill_invocations) > 0:
     global_existing = read_entries(GLOBAL_KNOWLEDGE)
     context = "\n".join(assistant_texts[:4])
 

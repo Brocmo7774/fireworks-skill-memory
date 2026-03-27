@@ -8,6 +8,7 @@
 
 Claude remembers what it learned — session after session, skill by skill.
 
+[![Version](https://img.shields.io/badge/version-3.0.0-orange.svg)](https://github.com/yizhiyanhua-ai/fireworks-skill-memory/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-8A2BE2)](https://claude.ai/code)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://python.org)
@@ -76,6 +77,12 @@ Two hooks, two jobs:
 - Intent filtering — full injection for active skill use, top-5 highlights for exploratory reads
 - Frequency-weighted eviction — high-hit entries survive; rarely-triggered but critical lessons are protected
 
+**v3 precision & efficiency improvements (2026-03-28):**
+- Keyword-free triggering — removed hardcoded keyword lists; distillation now triggers purely from skill invocations, fixing blind spots for non-English and domain-specific skills
+- Error-signal gating — haiku is only called when error/fix signals are detected in the transcript, eliminating wasted API calls on smooth sessions
+- Multi-path skill detection — recognizes skills installed via `~/.claude/skills/`, project `.skills/`, and `~/.agents/skills/`
+- Timestamped decay — entries tagged `[YYYY-MM]` auto-expire after 3 months, keeping knowledge fresh without manual cleanup
+
 ### Harness Engineering Pattern
 
 <img src="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/docs/harness-pattern.svg" alt="Harness pattern diagram" width="100%"/>
@@ -128,11 +135,11 @@ Example entries that accumulate over real usage:
 ```markdown
 # browser-use — experience
 
-- [state before acting] Always run `browser-use state` before clicking —
+- [2026-03] [state before acting] Always run `browser-use state` before clicking —
   indices change after every page interaction. Never reuse a stale index.
-- [daemon lifecycle] Run `browser-use close` when done. The daemon stays
+- [2026-03] [daemon lifecycle] Run `browser-use close` when done. The daemon stays
   open and holds resources until explicitly closed.
-- [auth via profile] Use --profile "Default" to access sites where you're
+- [2026-02] [auth via profile] Use --profile "Default" to access sites where you're
   already logged in. Headless Chromium has no saved cookies.
 ```
 
