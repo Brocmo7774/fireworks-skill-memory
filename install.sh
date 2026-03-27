@@ -114,16 +114,20 @@ info "Hooks registered in settings.json"
 
 # ── 6. Optional: seed example knowledge files ──────────────────────────────────
 echo ""
-read -r -p "📚 Seed starter KNOWLEDGE.md files for popular skills? [Y/n] " SEED
+read -r -p "📚 Seed starter KNOWLEDGE.md files for Claude Code built-in skills? [Y/n] " SEED
 SEED="${SEED:-Y}"
 
 if [[ "$SEED" =~ ^[Yy]$ ]]; then
   declare -A SKILL_FILES=(
-    ["claude-to-im"]="claude-to-im.md"
-    ["baoyu-translate"]="baoyu-translate.md"
-    ["baoyu-youtube-transcript"]="baoyu-youtube-transcript.md"
-    ["baoyu-image-gen"]="baoyu-image-gen.md"
-    ["qiaomu-music-player-ncm"]="qiaomu-music-player-ncm.md"
+    ["find-skills"]="find-skills.md"
+    ["skills-updater"]="skills-updater.md"
+    ["voice"]="voice.md"
+    ["browser-use"]="browser-use.md"
+    ["skill-adoption-planner"]="skill-adoption-planner.md"
+    ["skill-knowledge-extractor"]="skill-knowledge-extractor.md"
+    ["skill-roi-calculator"]="skill-roi-calculator.md"
+    ["hookify"]="hookify.md"
+    ["superpowers"]="superpowers.md"
   )
 
   for skill in "${!SKILL_FILES[@]}"; do

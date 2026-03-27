@@ -119,8 +119,8 @@ Type `/hooks` in Claude Code to reload the configuration without restarting.
 Copy or write a `KNOWLEDGE.md` into any skill directory:
 
 ```bash
-cp examples/skill-knowledge/baoyu-translate.md \
-   ~/.claude/skills/baoyu-translate/KNOWLEDGE.md
+cp examples/skill-knowledge/find-skills.md \
+   ~/.claude/skills/find-skills/KNOWLEDGE.md
 ```
 
 ---
@@ -201,15 +201,19 @@ When a knowledge file exceeds its limit (`SKILL_MAX` / `GLOBAL_MAX`), the oldest
 
 ## Included example knowledge files
 
-The `examples/skill-knowledge/` directory contains starter knowledge files for popular skills:
+The `examples/skill-knowledge/` directory contains starter knowledge files for Claude Code's built-in and official skills:
 
 | File | Covers |
 |------|--------|
-| `claude-to-im.md` | Feishu Docx API: block types, image upload flow, index param, error codes |
-| `baoyu-translate.md` | PDF handling, Feishu write order, mode selection |
-| `baoyu-youtube-transcript.md` | yt-dlp proxy, cookie strategy, anti-bot workarounds |
-| `baoyu-image-gen.md` | Provider fallback order, API key setup |
-| `qiaomu-music-player-ncm.md` | mpv sandbox issue, orpheus mode, login flow |
+| `find-skills.md` | CLI commands, install paths, security ratings, network errors, duplicate checking |
+| `skills-updater.md` | Two update sources, version tracking, locale detection, batch update risks |
+| `voice.md` | agent-voice setup, auth flow, ask vs say, session lifecycle |
+| `browser-use.md` | State-before-act pattern, daemon lifecycle, profile auth, headless vs headed |
+| `skill-adoption-planner.md` | Fast-path input, resistance diagnosis, output roadmap format |
+| `skill-knowledge-extractor.md` | No-script mode, best input formats, pattern types, iteration expectations |
+| `skill-roi-calculator.md` | Minimum viable data, two calculation modes, comparison mode |
+| `hookify.md` | Rule file location and format, regex pattern field, naming convention |
+| `superpowers.md` | Mandatory invocation rule, user-instruction priority, sub-skill structure |
 
 ---
 

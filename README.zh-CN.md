@@ -119,8 +119,8 @@ cp scripts/update-skills-knowledge.py ~/.claude/scripts/
 把示例知识文件复制到对应 skill 目录：
 
 ```bash
-cp examples/skill-knowledge/baoyu-translate.md \
-   ~/.claude/skills/baoyu-translate/KNOWLEDGE.md
+cp examples/skill-knowledge/find-skills.md \
+   ~/.claude/skills/find-skills/KNOWLEDGE.md
 ```
 
 ---
@@ -198,15 +198,19 @@ cp examples/skill-knowledge/baoyu-translate.md \
 
 ## 随附示例知识文件
 
-`examples/skill-knowledge/` 目录包含常用 skill 的初始知识文件：
+`examples/skill-knowledge/` 目录包含 Claude Code 内置及官方 skill 的初始知识文件：
 
 | 文件 | 内容 |
 |------|------|
-| `claude-to-im.md` | 飞书 Docx API：block 类型、图片上传流程、index 参数、错误码 |
-| `baoyu-translate.md` | PDF 处理、飞书写入顺序、模式选择 |
-| `baoyu-youtube-transcript.md` | yt-dlp 代理、cookie 方案、反爬策略 |
-| `baoyu-image-gen.md` | Provider 回退顺序、API key 配置 |
-| `qiaomu-music-player-ncm.md` | mpv 沙箱问题、orpheus 模式、登录流程 |
+| `find-skills.md` | CLI 命令、安装路径、安全评级、网络错误、重复检查 |
+| `skills-updater.md` | 两个更新来源、版本追踪、语言自动检测、批量更新风险 |
+| `voice.md` | agent-voice 安装、认证流程、ask vs say 区别、会话生命周期 |
+| `browser-use.md` | state 优先原则、守护进程生命周期、Profile 认证、有头/无头模式 |
+| `skill-adoption-planner.md` | 快速评估输入格式、阻力诊断、输出路线图格式 |
+| `skill-knowledge-extractor.md` | 无脚本模式、最佳输入格式、模式类型、迭代预期 |
+| `skill-roi-calculator.md` | 最小数据要求、两种计算模式、对比模式 |
+| `hookify.md` | 规则文件位置和格式、正则表达式字段、命名规范 |
+| `superpowers.md` | 强制调用规则、用户指令优先级、子技能结构 |
 
 ---
 
