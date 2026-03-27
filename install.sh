@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # fireworks-skill-memory — one-command installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main"
+REPO="https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main"
 SCRIPTS_DIR="$HOME/.claude/scripts"
 SETTINGS="$HOME/.claude/settings.json"
 SKILLS_DIR="$HOME/.claude/skills"
@@ -155,5 +155,5 @@ echo "  How it works:"
 echo "  • When you use any skill, Claude now automatically loads its past experience."
 echo "  • When a session ends, new lessons are distilled and saved for next time."
 echo ""
-echo "  Repo: https://github.com/ccc7574/fireworks-skill-memory"
+echo "  Repo: https://github.com/yizhiyanhua-ai/fireworks-skill-memory"
 echo ""

@@ -10,7 +10,7 @@
 ## 一键安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
 然后在 Claude Code 中输入 `/hooks` 即可生效。无需手动编辑任何配置文件。
@@ -54,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main
 ### 一键安装（推荐）
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
 脚本会自动完成：
@@ -72,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main
 **1. 克隆仓库**
 
 ```bash
-git clone https://github.com/ccc7574/fireworks-skill-memory.git
+git clone https://github.com/yizhiyanhua-ai/fireworks-skill-memory.git
 cd fireworks-skill-memory
 ```
 
@@ -237,4 +237,4 @@ cp examples/skill-knowledge/find-skills.md \
 
 ## License
 
-MIT © 2026 [ccc7574](https://github.com/ccc7574)
+MIT © 2026 [ccc7574](https://github.com/yizhiyanhua-ai)

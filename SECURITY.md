@@ -27,7 +27,7 @@ authentication. **No raw transcript content is sent to any third-party endpoint.
 
 ## Reporting a vulnerability
 
-Please open a [GitHub Issue](https://github.com/ccc7574/fireworks-skill-memory/issues)
+Please open a [GitHub Issue](https://github.com/yizhiyanhua-ai/fireworks-skill-memory/issues)
 marked **[SECURITY]**. For sensitive disclosures, use GitHub's private vulnerability
 reporting feature.
 

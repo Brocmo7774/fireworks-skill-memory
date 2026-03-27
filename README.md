@@ -10,7 +10,7 @@
 ## Quick install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
 Then type `/hooks` in Claude Code — done. No config files to edit manually.
@@ -54,7 +54,7 @@ When you use a Claude Code skill repeatedly, the same mistakes happen session af
 ### One command (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ccc7574/fireworks-skill-memory/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yizhiyanhua-ai/fireworks-skill-memory/main/install.sh | bash
 ```
 
 The script will:
@@ -72,7 +72,7 @@ Then type `/hooks` in Claude Code to activate.
 **1. Clone the repo**
 
 ```bash
-git clone https://github.com/ccc7574/fireworks-skill-memory.git
+git clone https://github.com/yizhiyanhua-ai/fireworks-skill-memory.git
 cd fireworks-skill-memory
 ```
 
@@ -240,4 +240,4 @@ Contributions of new starter `KNOWLEDGE.md` files for popular skills are especia
 
 ## License
 
-MIT © 2026 [ccc7574](https://github.com/ccc7574)
+MIT © 2026 [ccc7574](https://github.com/yizhiyanhua-ai)
