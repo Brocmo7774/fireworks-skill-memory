@@ -70,6 +70,20 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+# ── Logging ────────────────────────────────────────────────────────────────────
+LOG_FILE = Path(os.environ.get("SKILLS_MEMORY_LOG", Path.home() / ".claude" / "skill-memory.log"))
+
+def log(session_id: str, msg: str) -> None:
+    """Append a single log line to skill-memory.log."""
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sid = session_id[:8] if session_id else "--------"
+        with LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(f"{ts} | {sid} | {msg}\n")
+    except Exception:
+        pass
+
 # ── Configuration ──────────────────────────────────────────────────────────────
 SKILLS_DIR = Path(
     os.environ.get("SKILLS_KNOWLEDGE_DIR", Path.home() / ".claude" / "skills")
@@ -81,11 +95,12 @@ GLOBAL_KNOWLEDGE = Path(
     )
 )
 DISTILL_MODEL = os.environ.get("SKILLS_KNOWLEDGE_MODEL", "claude-haiku-4-5")
-GLOBAL_MAX = int(os.environ.get("GLOBAL_MAX", "20"))
-SKILL_MAX = int(os.environ.get("SKILL_MAX", "30"))
+GLOBAL_MAX = int(os.environ.get("GLOBAL_MAX", "100"))
+SKILL_MAX = int(os.environ.get("SKILL_MAX", "100"))
 TRANSCRIPT_LINES = int(os.environ.get("TRANSCRIPT_LINES", "300"))
-# [Opt-1] Minimum real tool calls to consider this a non-summary session
 MIN_TOOL_CALLS = int(os.environ.get("MIN_TOOL_CALLS", "5"))
+SEEDS_DIR = Path(os.environ.get("SKILLS_SEEDS_DIR", Path.home() / ".claude" / "error-seeds"))
+STATS_FILE = Path(os.environ.get("SKILLS_STATS_FILE", Path.home() / ".claude" / "skill-usage-stats.json"))
 
 # [Opt-5] Error/fix signal detection — used as a heuristic pre-filter for distillation.
 # Only sessions containing these signals are worth distilling (avoids wasting haiku calls
@@ -124,6 +139,7 @@ for proj_dir in projects_dir.iterdir():
         break
 
 if not transcript_file:
+    log(session_id, "SKIP | transcript not found")
     sys.exit(0)
 
 # ── Parse transcript (last N lines) ───────────────────────────────────────────
@@ -184,6 +200,7 @@ for raw in lines:
 # A session restored from a summary has very few real tool calls in the transcript.
 # Distilling from summary text produces low-quality, generic lessons — skip it.
 if real_tool_call_count < MIN_TOOL_CALLS:
+    log(session_id, f"SKIP | tool_calls={real_tool_call_count} < MIN={MIN_TOOL_CALLS}")
     sys.exit(0)
 
 # [Opt-5] Error-signal heuristic: only sessions with error/fix signals are worth distilling.
@@ -197,9 +214,33 @@ if has_error_signal:
     snippets = [t for t in tool_result_texts if ERROR_SIGNAL_PATTERNS.search(t)]
     error_snippets = "\n".join(snippets[:5])[:1500]
 
+# [Opt-8] Load session-scoped error seeds from error-seed-capture.py (covers all tools)
+session_seed_file = SEEDS_DIR / f"{session_id}.txt"
+session_seed_text = ""
+if session_seed_file.exists():
+    try:
+        session_seed_text = session_seed_file.read_text(encoding="utf-8").strip()[-2000:]
+        session_seed_file.unlink()  # Consume — don't re-use next session
+        if session_seed_text and not has_error_signal:
+            has_error_signal = True  # seeds override transcript-level signal
+        log(session_id, f"SEEDS | loaded {len(session_seed_text)} chars from session seeds")
+    except Exception:
+        pass
+
+# Merge session seeds into error_snippets
+if session_seed_text:
+    error_snippets = (session_seed_text + "\n" + error_snippets)[:2500]
+
 # Skip sessions with no skill invocations AND no error signals
 if not skill_invocations and not has_error_signal:
+    log(session_id, "SKIP | no skill invocations and no error signals")
     sys.exit(0)
+
+log(session_id, f"START | tool_calls={real_tool_call_count} | skills={','.join(skill_invocations) or 'none'} | error_signal={has_error_signal}")
+
+# [Opt-9] Update cross-session usage stats
+if skill_invocations:
+    update_stats(skill_invocations)
 
 # ── Helper functions ───────────────────────────────────────────────────────────
 
@@ -317,18 +358,56 @@ def merge_entries(existing: list[str], new_insights: str) -> list[str]:
     return existing
 
 
-def ask_model(prompt: str) -> str:
-    """Call the distillation model via the Claude CLI."""
+def update_stats(skills: set) -> None:
+    """[Opt-9] Update cross-session skill usage stats in skill-usage-stats.json."""
     try:
-        result = subprocess.run(
-            ["claude", "-p", prompt, "--model", DISTILL_MODEL],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        return result.stdout.strip()
+        stats = {}
+        if STATS_FILE.exists():
+            stats = json.loads(STATS_FILE.read_text(encoding="utf-8"))
+        today = datetime.now().strftime("%Y-%m-%d")
+        for skill in skills:
+            entry = stats.setdefault(skill, {"total": 0, "last_seen": "", "daily": {}})
+            entry["total"] += 1
+            entry["last_seen"] = today
+            entry["daily"][today] = entry["daily"].get(today, 0) + 1
+        STATS_FILE.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
-        return "SKIP"
+        pass
+
+
+def ask_model(prompt: str) -> str:
+    """Call the distillation model via the Claude CLI, with model fallback."""
+    # [Opt-8] Fallback chain: if primary model fails, try next in list
+    model_env = os.environ.get("SKILLS_KNOWLEDGE_MODEL", "")
+    fallback_models = [
+        model_env,
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
+        "claude-haiku-3-5",
+    ]
+    # Deduplicate while preserving order, skip empty
+    seen = set()
+    models = []
+    for m in fallback_models:
+        if m and m not in seen:
+            seen.add(m)
+            models.append(m)
+
+    for model in models:
+        try:
+            result = subprocess.run(
+                ["claude", "-p", prompt, "--model", model],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                if model != models[0]:
+                    log(session_id, f"FALLBACK | used model={model} (primary failed)")
+                return result.stdout.strip()
+        except Exception:
+            continue
+    return "SKIP"
 
 
 # ── Update per-skill KNOWLEDGE.md files ───────────────────────────────────────
@@ -397,6 +476,9 @@ for skill_name in skill_invocations:
             f"# {skill_name} — experience",
             f"Hands-on API/tool experience accumulated while using the {skill_name} skill.",
         )
+        log(session_id, f"UPDATED | skill={skill_name} | entries={len(existing)}")
+    else:
+        log(session_id, f"SKIP | skill={skill_name} | haiku={insights[:40] if insights else 'empty'}")
 
 # ── Update global cross-skill knowledge file ──────────────────────────────────
 # [Opt-5] Only distill global knowledge when error signals are present AND skills were used
@@ -434,3 +516,6 @@ if has_error_signal and len(skill_invocations) > 0:
             header + "\n".join(global_existing) + "\n",
             encoding="utf-8",
         )
+        log(session_id, f"UPDATED | global | entries={len(global_existing)}")
+    else:
+        log(session_id, f"SKIP | global | haiku={global_insights[:40] if global_insights else 'empty'}")

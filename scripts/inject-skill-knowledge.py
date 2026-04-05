@@ -157,10 +157,25 @@ if not knowledge_content:
     sys.exit(0)
 
 # ── [Opt-3] Selective injection based on intent ────────────────────────────────
+TOP_INJECT = int(os.environ.get("SKILLS_INJECT_TOP", "20"))
+
+def _get_hit_count(entry: str) -> int:
+    import re as _re
+    m = _re.search(r"\[HIT:(\d+)\]", entry)
+    return int(m.group(1)) if m else 0
+
 if is_active_invocation:
-    # Full injection: Claude is about to use this skill — all experience relevant
-    injection_body = knowledge_content
-    injection_note = "full experience"
+    # Active invocation: inject top-N by HIT count (context-efficient for large knowledge bases)
+    bullet_lines = [
+        ln for ln in knowledge_content.splitlines()
+        if ln.strip().startswith("- ")
+    ]
+    bullet_lines.sort(key=_get_hit_count, reverse=True)
+    top_lines = bullet_lines[:TOP_INJECT]
+    if not top_lines:
+        sys.exit(0)
+    injection_body = "\n".join(top_lines)
+    injection_note = f"top-{len(top_lines)} by relevance (active invocation)"
 else:
     # Condensed injection: exploratory read — only inject summary header
     # Extract the first 5 bullet entries to avoid overwhelming context
