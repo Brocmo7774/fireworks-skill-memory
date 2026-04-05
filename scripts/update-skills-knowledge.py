@@ -519,3 +519,66 @@ if has_error_signal and len(skill_invocations) > 0:
         log(session_id, f"UPDATED | global | entries={len(global_existing)}")
     else:
         log(session_id, f"SKIP | global | haiku={global_insights[:40] if global_insights else 'empty'}")
+
+# ── Daily update check for fireworks-skill-memory itself ──────────────────────
+# [Opt-9] Once per day, check if the remote repo has updates. If so, write an
+# UPDATE_AVAILABLE file so the SessionStart hook can notify the user.
+UPDATE_CHECK_FILE = Path.home() / ".claude" / "skill-memory-update-check.txt"
+UPDATE_AVAILABLE_FILE = Path.home() / ".claude" / "skill-memory-update-available.txt"
+REPO_DIR = Path(__file__).resolve().parent.parent  # ~/.claude or fireworks-skill-memory root
+
+def check_for_updates() -> None:
+    today = datetime.now().strftime("%Y-%m-%d")
+    # Only check once per day
+    if UPDATE_CHECK_FILE.exists():
+        if UPDATE_CHECK_FILE.read_text(encoding="utf-8").strip() == today:
+            return
+    try:
+        # Find the git repo containing this script
+        script_dir = Path(__file__).resolve().parent
+        # Try to find a git repo by walking up
+        git_dir = script_dir
+        for _ in range(4):
+            if (git_dir / ".git").exists():
+                break
+            git_dir = git_dir.parent
+        else:
+            return  # no git repo found
+
+        # Fetch remote silently
+        fetch = subprocess.run(
+            ["git", "-C", str(git_dir), "fetch", "--quiet", "origin"],
+            capture_output=True, text=True, timeout=10,
+            env={**os.environ, "ALL_PROXY": "socks5://127.0.0.1:7890"}
+        )
+        if fetch.returncode != 0:
+            return
+
+        # Compare local HEAD vs remote
+        local = subprocess.run(
+            ["git", "-C", str(git_dir), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+        remote = subprocess.run(
+            ["git", "-C", str(git_dir), "rev-parse", "origin/main"],
+            capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+
+        UPDATE_CHECK_FILE.write_text(today, encoding="utf-8")
+
+        if local != remote:
+            UPDATE_AVAILABLE_FILE.write_text(
+                f"fireworks-skill-memory has updates available ({local[:7]}→{remote[:7]}).\n"
+                f"Run: claude \"帮我从 github.com/yizhiyanhua-ai/fireworks-skill-memory 更新 fireworks-skill-memory\"\n",
+                encoding="utf-8"
+            )
+            log(session_id, f"UPDATE_AVAILABLE | local={local[:7]} remote={remote[:7]}")
+        else:
+            # Remove stale notification if already up to date
+            if UPDATE_AVAILABLE_FILE.exists():
+                UPDATE_AVAILABLE_FILE.unlink()
+            log(session_id, "UPDATE_CHECK | up to date")
+    except Exception:
+        pass
+
+check_for_updates()
