@@ -573,8 +573,6 @@ def check_for_updates() -> None:
             capture_output=True, text=True, timeout=3
         ).stdout.strip()
 
-        UPDATE_CHECK_FILE.write_text(today, encoding="utf-8")
-
         if local != remote:
             UPDATE_AVAILABLE_FILE.write_text(
                 f"fireworks-skill-memory has updates available ({local[:7]}→{remote[:7]}).\n"
