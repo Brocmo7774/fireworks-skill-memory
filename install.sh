@@ -46,9 +46,19 @@ curl -fsSL "$REPO/scripts/update-skills-knowledge.py" \
   -o "$SCRIPTS_DIR/update-skills-knowledge.py"
 info "update-skills-knowledge.py → $SCRIPTS_DIR/"
 
+curl -fsSL "$REPO/scripts/pre-skill-inject.py" \
+  -o "$SCRIPTS_DIR/pre-skill-inject.py"
+info "pre-skill-inject.py → $SCRIPTS_DIR/"
+
+curl -fsSL "$REPO/scripts/error-seed-capture.py" \
+  -o "$SCRIPTS_DIR/error-seed-capture.py"
+info "error-seed-capture.py → $SCRIPTS_DIR/"
+
 # ── 4. Quick syntax check ──────────────────────────────────────────────────────
 python3 -m py_compile "$SCRIPTS_DIR/inject-skill-knowledge.py"  || error "Syntax error in inject script"
 python3 -m py_compile "$SCRIPTS_DIR/update-skills-knowledge.py" || error "Syntax error in update script"
+python3 -m py_compile "$SCRIPTS_DIR/pre-skill-inject.py"     || error "Syntax error in pre-skill-inject script"
+python3 -m py_compile "$SCRIPTS_DIR/error-seed-capture.py"   || error "Syntax error in error-seed-capture script"
 info "Scripts verified (syntax OK)"
 
 # ── 5. Patch settings.json ─────────────────────────────────────────────────────
@@ -87,6 +97,22 @@ already_stop = any(
 if not already_stop:
     stop_entries.append({"hooks": [new_stop_hook]})
 
+# ── PreToolUse hook (pre-skill injector) ───────────────────────────────────────
+new_pre_inject_hook = {
+    "type": "command",
+    "command": f"python3 {scripts_dir}/pre-skill-inject.py",
+}
+pre_entries = hooks.setdefault("PreToolUse", [])
+already_pre = any(
+    e.get("matcher") == "Skill" and any(
+        h.get("command", "") == new_pre_inject_hook["command"]
+        for h in e.get("hooks", [])
+    )
+    for e in pre_entries
+)
+if not already_pre:
+    pre_entries.append({"matcher": "Skill", "hooks": [new_pre_inject_hook]})
+
 # ── PostToolUse hook (injector) ────────────────────────────────────────────────
 new_inject_hook = {
     "type": "command",
@@ -103,6 +129,21 @@ already_inject = any(
 )
 if not already_inject:
     post_entries.append({"matcher": "Read", "hooks": [new_inject_hook]})
+
+# ── PostToolUse hook (error seed capture) ──────────────────────────────────────
+new_error_hook = {
+    "type": "command",
+    "command": f"python3 {scripts_dir}/error-seed-capture.py",
+}
+already_error = any(
+    e.get("matcher") == ".*" and any(
+        h.get("command", "") == new_error_hook["command"]
+        for h in e.get("hooks", [])
+    )
+    for e in post_entries
+)
+if not already_error:
+    post_entries.append({"matcher": ".*", "hooks": [new_error_hook]})
 
 settings_path.write_text(
     json.dumps(settings, indent=2, ensure_ascii=False) + "\n"

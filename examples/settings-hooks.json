@@ -1,12 +1,12 @@
 {
   "hooks": {
-    "Stop": [
+    "PreToolUse": [
       {
+        "matcher": "Skill",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/scripts/update-skills-knowledge.py",
-            "async": true
+            "command": "python3 ~/.claude/scripts/pre-skill-inject.py"
           }
         ]
       }
@@ -19,6 +19,26 @@
             "type": "command",
             "command": "python3 ~/.claude/scripts/inject-skill-knowledge.py",
             "if": "Read(**/.claude/skills/*/SKILL.md)"
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/scripts/error-seed-capture.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/scripts/update-skills-knowledge.py",
+            "async": true
           }
         ]
       }
